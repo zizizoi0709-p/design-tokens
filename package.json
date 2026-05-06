@@ -1,0 +1,18 @@
+{
+  "name": "design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tokens Studio (Figma) → Style Dictionary → iOS assets pipeline",
+  "scripts": {
+    "build": "node build.js",
+    "clean": "rm -rf build"
+  },
+  "dependencies": {
+    "@tokens-studio/sd-transforms": "^1.0.0",
+    "style-dictionary": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
