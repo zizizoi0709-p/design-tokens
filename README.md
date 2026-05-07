@@ -51,7 +51,7 @@ npm run clean && npm run build
 | 경로 | 설명 |
 | --- | --- |
 | `build/ios/Colors.xcassets/` | 색상 토큰의 Asset Catalog. 라이트/다크가 매칭되는 색상은 두 외양을 함께 포함하고, `static.*`처럼 매칭이 없는 색상은 universal asset으로 출력. |
-| `build/ios/DesignTokens.swift` | spacing / sizing / borderRadius / borderWidth / fontSizes / lineHeights를 `DesignTokens.<name>` 형태의 `CGFloat` 정적 상수로 출력. |
+| `build/ios/DesignTokens.swift` | primitiveCore의 비색상 토큰 전체를 `DesignTokens.<name>` 정적 상수로 출력. spacing / sizing / borderRadius / borderWidth / fontSizes / lineHeights / letterSpacing은 `CGFloat`, fontFamilies는 `String`, fontWeights는 `UIFont.Weight`, boxShadow는 동일 파일 상단의 `DesignTokenShadow` 구조체로 출력. |
 
 ## 토큰 셋 구조 (`tokens.json`)
 
@@ -72,6 +72,28 @@ npm run clean && npm run build
 - **라이트/다크는 동일한 키 경로**를 유지한다. 다크에 동일 키가 없으면 자동으로 universal asset으로 출력되며, 라이트/다크 자동 전환이 적용되지 않는다.
   - 예외: `color.static.*`은 라이트/다크 공통(universal)이며 다크에 키를 만들 필요 없음.
   - 예외: `*Alpha` 그룹은 다크 셋에서 `*DarkAlpha`로 매칭된다.
+
+## Swift 출력 형식
+
+`DesignTokens.swift`로 내려갈 때 토큰 type 별로 다음 형식이 적용된다.
+
+| Tokens Studio type | Swift 표현 | 비고 |
+| --- | --- | --- |
+| `spacing`, `sizing`, `borderRadius`, `borderWidth`, `fontSizes`, `lineHeights` | `CGFloat(N)` | 토큰 값을 그대로 사용 |
+| `fontFamilies` | `"Pretendard"` (`String`) | `UIFont(name:size:)`의 첫 인자에 그대로 전달 |
+| `fontWeights` | `UIFont.Weight.<constant>` | `Regular → .regular`, `Medium → .medium`, `Semibold → .semibold`, `Bold → .bold` (전체 매핑은 `style-dictionary.config.js`의 `FONT_WEIGHT_MAP`) |
+| `letterSpacing` | `CGFloat(em-fraction)` | `"-0.1%"` → `CGFloat(-0.001)`. 사용처에서 `kern = fontSize * value`로 환산 |
+| `boxShadow` | `DesignTokenShadow(...)` | 동일 파일 상단의 `public struct DesignTokenShadow { offsetX, offsetY, blur, spread, color }`를 사용 |
+
+`DesignTokenShadow`를 `CALayer`에 적용하는 예:
+
+```swift
+let s = DesignTokens.boxShadow100
+view.layer.shadowOffset = CGSize(width: s.offsetX, height: s.offsetY)
+view.layer.shadowRadius = s.blur / 2
+view.layer.shadowColor = s.color.cgColor
+view.layer.shadowOpacity = 1
+```
 
 ## 기술 스택
 
