@@ -66,9 +66,9 @@ StyleDictionary.registerTransform({
   transform: (token) => token.path[token.path.length - 1],
 });
 
-// Wrap raw numeric values in `CGFloat(...)` for Swift output.
-// Note: SD v4's built-in `size/swift/remToCGFloat` only matches type==='dimension'/'fontSize'
-// and multiplies by basePxFontSize (16) — neither fits our pixel-valued Tokens Studio types.
+// Numeric primitives → bare number literal. Type annotation `: CGFloat = N`
+// is added at the format level so that `2` is read as `CGFloat(2)` via Swift's
+// integer/float literal coercion.
 StyleDictionary.registerTransform({
   name: 'value/swift/cgfloat',
   type: 'value',
@@ -80,7 +80,7 @@ StyleDictionary.registerTransform({
         `Cannot convert non-numeric value to CGFloat for token "${token.path.join('.')}": ${token.value}`,
       );
     }
-    return `CGFloat(${num})`;
+    return String(num);
   },
 });
 
@@ -92,7 +92,8 @@ StyleDictionary.registerTransform({
   transform: (token) => `"${String(token.value).replace(/"/g, '\\"')}"`,
 });
 
-// fontWeights ("Regular"/"Medium"/...) → `UIFont.Weight.<constant>`.
+// fontWeights ("Regular"/"Medium"/...) → `.<constant>`.
+// Used with `: UIFont.Weight = .regular` annotation at the format level.
 StyleDictionary.registerTransform({
   name: 'value/swift/fontWeight',
   type: 'value',
@@ -105,11 +106,11 @@ StyleDictionary.registerTransform({
           `Expected one of: ${Object.keys(FONT_WEIGHT_MAP).join(', ')}`,
       );
     }
-    return `UIFont.Weight.${mapped}`;
+    return `.${mapped}`;
   },
 });
 
-// letterSpacing ("X%") → `CGFloat(X/100)` (em fraction).
+// letterSpacing ("X%") → bare em-fraction literal (e.g. `-0.001`).
 // Apply at usage site as `kern = fontSize * value`.
 StyleDictionary.registerTransform({
   name: 'value/swift/letterSpacing',
@@ -124,11 +125,13 @@ StyleDictionary.registerTransform({
       );
     }
     const em = Number((num / 100).toFixed(4));
-    return `CGFloat(${em})`;
+    return String(em);
   },
 });
 
 // boxShadow object → multi-line `DesignTokenShadow(...)` constructor literal.
+// Field types (CGFloat) are declared on the struct, so call sites can pass bare
+// numeric literals without `CGFloat(...)` wrapping.
 // Continuation lines are indented to align under `let name = ` inside `DesignTokens`.
 StyleDictionary.registerTransform({
   name: 'value/swift/boxShadow',
@@ -145,10 +148,10 @@ StyleDictionary.registerTransform({
     const num = (s) => parseFloat(String(s).trim());
     return [
       'DesignTokenShadow(',
-      `        offsetX: CGFloat(${num(v.x)}),`,
-      `        offsetY: CGFloat(${num(v.y)}),`,
-      `        blur: CGFloat(${num(v.blur)}),`,
-      `        spread: CGFloat(${num(v.spread)}),`,
+      `        offsetX: ${num(v.x)},`,
+      `        offsetY: ${num(v.y)},`,
+      `        blur: ${num(v.blur)},`,
+      `        spread: ${num(v.spread)},`,
       `        color: UIColor(red: ${rgba.red}, green: ${rgba.green}, blue: ${rgba.blue}, alpha: ${rgba.alpha})`,
       '    )',
     ].join('\n');
@@ -340,27 +343,32 @@ StyleDictionary.registerFormat({
   },
 });
 
-// Custom Swift class output. Replaces `ios-swift/class.swift` so we can:
-//   1. emit the `DesignTokenShadow` struct alongside the class in one file
-//   2. group properties under `// MARK: -` sections by token type
-//   3. interleave non-numeric Swift expressions (UIFont.Weight, UIColor, etc.)
+// Custom Swift output. Replaces `ios-swift/class.swift` so we can:
+//   1. emit `DesignTokens` as a caseless `enum` (pure namespace, non-instantiable)
+//   2. emit the `DesignTokenShadow` struct alongside the enum in one file
+//   3. annotate each constant with its declared Swift type (e.g. `: CGFloat = 2`)
+//      so that consumers see `CGFloat`-typed values without `CGFloat(...)` wrapping
+//   4. group properties under `// MARK: -` sections by token type
+//
+// `swiftType` of `null` means "rely on RHS inference" (used for boxShadow whose
+// RHS is `DesignTokenShadow(...)` and self-describes the type).
 const SWIFT_SECTIONS = [
-  { type: 'spacing', title: 'Spacing' },
-  { type: 'sizing', title: 'Sizing' },
-  { type: 'borderRadius', title: 'Border Radius' },
-  { type: 'borderWidth', title: 'Border Width' },
-  { type: 'fontFamilies', title: 'Font Family' },
-  { type: 'fontWeights', title: 'Font Weight' },
-  { type: 'fontSizes', title: 'Font Size' },
-  { type: 'lineHeights', title: 'Line Height' },
-  { type: 'letterSpacing', title: 'Letter Spacing (em fraction)' },
-  { type: 'boxShadow', title: 'Box Shadow' },
+  { type: 'spacing', title: 'Spacing', swiftType: 'CGFloat' },
+  { type: 'sizing', title: 'Sizing', swiftType: 'CGFloat' },
+  { type: 'borderRadius', title: 'Border Radius', swiftType: 'CGFloat' },
+  { type: 'borderWidth', title: 'Border Width', swiftType: 'CGFloat' },
+  { type: 'fontFamilies', title: 'Font Family', swiftType: 'String' },
+  { type: 'fontWeights', title: 'Font Weight', swiftType: 'UIFont.Weight' },
+  { type: 'fontSizes', title: 'Font Size', swiftType: 'CGFloat' },
+  { type: 'lineHeights', title: 'Line Height', swiftType: 'CGFloat' },
+  { type: 'letterSpacing', title: 'Letter Spacing (em fraction)', swiftType: 'CGFloat' },
+  { type: 'boxShadow', title: 'Box Shadow', swiftType: null },
 ];
 
 StyleDictionary.registerFormat({
   name: 'ios-swift/designTokensClass',
   format: ({ dictionary, file, options }) => {
-    const className = options?.className ?? 'DesignTokens';
+    const enumName = options?.className ?? 'DesignTokens';
 
     const grouped = {};
     for (const token of dictionary.allTokens) {
@@ -384,10 +392,10 @@ StyleDictionary.registerFormat({
     lines.push('    public let color: UIColor');
     lines.push('}');
     lines.push('');
-    lines.push(`public class ${className} {`);
+    lines.push(`public enum ${enumName} {`);
 
     let firstSection = true;
-    for (const { type, title } of SWIFT_SECTIONS) {
+    for (const { type, title, swiftType } of SWIFT_SECTIONS) {
       const tokens = grouped[type];
       if (!tokens || tokens.length === 0) continue;
       if (!firstSection) lines.push('');
@@ -395,7 +403,10 @@ StyleDictionary.registerFormat({
       lines.push(`    // MARK: - ${title}`);
       tokens.sort((a, b) => a.name.localeCompare(b.name, 'en'));
       for (const t of tokens) {
-        lines.push(`    public static let ${t.name} = ${t.value}`);
+        const lhs = swiftType
+          ? `public static let ${t.name}: ${swiftType}`
+          : `public static let ${t.name}`;
+        lines.push(`    ${lhs} = ${t.value}`);
       }
     }
 
