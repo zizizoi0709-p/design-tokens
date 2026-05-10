@@ -1,0 +1,121 @@
+name: Build and sync to iOS repo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - tokens.json
+      - style-dictionary.config.js
+      - build.js
+      - package.json
+      - package-lock.json
+      - .github/workflows/build-and-pr.yml
+  workflow_dispatch: {}
+
+concurrency:
+  group: design-tokens-sync
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 사용 전에 확인 / 수정해야 하는 값들 ↓↓↓
+#   TARGET_REPO         : 산출물을 받을 iOS 레포 (owner/name)
+#   TARGET_BRANCH_BASE  : Bangawo 측 PR base 브랜치 (보통 main 또는 develop)
+#   TARGET_BRANCH_NAME  : 자동 PR이 사용할 브랜치 (재사용 — PR 1개로 누적)
+#   ASSETS_DEST         : Bangawo 안 Asset Catalog 위치
+#   SWIFT_DEST          : Bangawo 안 DesignTokens.swift 위치
+#
+# 그리고 이 레포의 Settings → Secrets and variables → Actions 에
+# `BANGAWO_PAT` 시크릿(타겟 레포의 contents:write + pull-requests:write 권한
+# 가진 PAT) 을 등록해야 한다.
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  TARGET_REPO: zizizoi0709-p/Bangawo
+  TARGET_BRANCH_BASE: main
+  TARGET_BRANCH_NAME: design-tokens/auto-sync
+  ASSETS_DEST: Projects/Shared/DesignSystem/Resources/ColorAssets.xcassets
+  SWIFT_DEST: Projects/Shared/DesignSystem/Sources/Generated/DesignTokens.swift
+
+jobs:
+  build-and-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout design-tokens
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Style Dictionary
+        run: npm run build
+
+      - name: Verify build outputs exist
+        run: |
+          set -euo pipefail
+          test -f build/ios/DesignTokens.swift
+          test -f build/ios/Colors.xcassets/Contents.json
+          test -d build/ios/Colors.xcassets
+          colorset_count=$(find build/ios/Colors.xcassets -maxdepth 1 -name '*.colorset' -type d | wc -l)
+          if [ "$colorset_count" -lt 1 ]; then
+            echo "::error::No .colorset entries were generated"
+            exit 1
+          fi
+          echo "Generated $colorset_count colorset entries"
+
+      - name: Checkout target iOS repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TARGET_REPO }}
+          token: ${{ secrets.BANGAWO_PAT }}
+          path: bangawo
+          ref: ${{ env.TARGET_BRANCH_BASE }}
+          fetch-depth: 0
+
+      - name: Replace generated artifacts in target repo
+        run: |
+          set -euo pipefail
+
+          # Asset catalog: full replace (handles deleted/renamed colors)
+          rm -rf "bangawo/${ASSETS_DEST}"
+          mkdir -p "bangawo/$(dirname "${ASSETS_DEST}")"
+          cp -R build/ios/Colors.xcassets "bangawo/${ASSETS_DEST}"
+
+          # Swift file: simple overwrite
+          mkdir -p "bangawo/$(dirname "${SWIFT_DEST}")"
+          cp build/ios/DesignTokens.swift "bangawo/${SWIFT_DEST}"
+
+      - name: Open / update PR in target repo
+        uses: peter-evans/create-pull-request@v6
+        with:
+          path: bangawo
+          token: ${{ secrets.BANGAWO_PAT }}
+          base: ${{ env.TARGET_BRANCH_BASE }}
+          branch: ${{ env.TARGET_BRANCH_NAME }}
+          delete-branch: false
+          title: ':art: chore: design-tokens 자동 반영'
+          commit-message: |
+            :art: chore: design-tokens 자동 반영
+
+            source: ${{ github.repository }}@${{ github.sha }}
+          labels: |
+            design-tokens
+            auto-generated
+          body: |
+            ## 자동 생성된 디자인 토큰 반영
+
+            **Source**: [`${{ github.repository }}@${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+            **Trigger**: `${{ github.event_name }}` on `${{ github.ref_name }}`
+            **Workflow run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            ### 변경된 파일
+            - `${{ env.ASSETS_DEST }}` (Asset Catalog)
+            - `${{ env.SWIFT_DEST }}` (DesignTokens.swift)
+
+            > 자동 생성된 PR입니다. 같은 브랜치(`${{ env.TARGET_BRANCH_NAME }}`)를 재사용하므로
+            > 디자인 토큰 변경 시마다 이 PR에 커밋이 누적됩니다.
+            > 직접 편집해도 다음 토큰 변경 시 덮어쓰기됩니다.
