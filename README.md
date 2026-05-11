@@ -20,7 +20,13 @@ Tokens Studio(Figma)에서 정의한 디자인 토큰을 Style Dictionary로 변
 ┌──────────────────────────────────────┐
 │  build/ios/                          │
 │  ├─ Colors.xcassets (라이트/다크)    │
-│  └─ DesignTokens.swift               │
+│  ├─ Colors+Generated.swift           │
+│  ├─ Spacing+Generated.swift          │
+│  ├─ Sizing+Generated.swift           │
+│  ├─ BorderRadius+Generated.swift     │
+│  ├─ BorderWidth+Generated.swift      │
+│  ├─ Typography+Generated.swift       │
+│  └─ BoxShadow+Generated.swift        │
 └──────────┬───────────────────────────┘
            │ GitHub Actions
            │ (.github/workflows/build-and-pr.yml)
@@ -49,10 +55,22 @@ npm run clean && npm run build
 
 ## 빌드 산출물
 
-| 경로 | 설명 |
-| --- | --- |
-| `build/ios/Colors.xcassets/` | 색상 토큰의 Asset Catalog. 라이트/다크가 매칭되는 색상은 두 외양을 함께 포함하고, `static.*`처럼 매칭이 없는 색상은 universal asset으로 출력. |
-| `build/ios/DesignTokens.swift` | primitiveCore의 비색상 토큰 전체를 `DesignTokens.<name>` 정적 상수로 출력. spacing / sizing / borderRadius / borderWidth / fontSizes / lineHeights / letterSpacing은 `CGFloat`, fontFamilies는 `String`, fontWeights는 `UIFont.Weight`, boxShadow는 동일 파일 상단의 `DesignTokenShadow` 구조체로 출력. |
+iOS 팀의 디렉토리 컨벤션에 맞춰 **카테고리별로 분리된 7개 Swift 파일 + 1개 Asset Catalog**로 출력한다.
+
+| 산출물 | 빌드 위치 | iOS 레포 배치 (워크플로우 자동 복사) |
+| --- | --- | --- |
+| Color (xcassets) | `build/ios/Colors.xcassets/` | `Projects/Shared/DesignSystem/Resources/Colors.xcassets/` |
+| Color (Swift accessor) | `build/ios/Colors+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Color/Generated/Colors+Generated.swift` |
+| Typography | `build/ios/Typography+Generated.swift` | `Projects/Shared/DesignSystem/Sources/CustomFont/Generated/Typography+Generated.swift` |
+| Spacing | `build/ios/Spacing+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Spacing/Generated/Spacing+Generated.swift` |
+| Sizing | `build/ios/Sizing+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Sizing/Generated/Sizing+Generated.swift` |
+| BorderRadius | `build/ios/BorderRadius+Generated.swift` | `Projects/Shared/DesignSystem/Sources/BorderRadius/Generated/BorderRadius+Generated.swift` |
+| BorderWidth | `build/ios/BorderWidth+Generated.swift` | `Projects/Shared/DesignSystem/Sources/BorderWidth/Generated/BorderWidth+Generated.swift` |
+| BoxShadow | `build/ios/BoxShadow+Generated.swift` | _(미배포 — 빌드만 됨)_ |
+
+배제된 토큰:
+- **fontFamilies (`"Pretendard"`)**: 기존 `PretendardFontFamily.swift`가 수동으로 관리하므로 Typography 출력에 미포함.
+- **boxShadow**: iOS팀 배치표에 미명시. 빌드는 되나 워크플로우 복사 단계에서 제외. 필요 시 워크플로우 한 줄 추가로 활성화 가능.
 
 ## 토큰 셋 구조 (`tokens.json`)
 
@@ -76,20 +94,28 @@ npm run clean && npm run build
 
 ## Swift 출력 형식
 
-`DesignTokens.swift`로 내려갈 때 토큰 type 별로 다음 형식이 적용된다.
+카테고리별로 분리된 파일마다 자체 네임스페이스(또는 확장)를 선언한다.
 
-| Tokens Studio type | Swift 표현 | 비고 |
+| 파일 | Swift 진입점 | 표현 |
 | --- | --- | --- |
-| `spacing`, `sizing`, `borderRadius`, `borderWidth`, `fontSizes`, `lineHeights` | `CGFloat(N)` | 토큰 값을 그대로 사용 |
-| `fontFamilies` | `"Pretendard"` (`String`) | `UIFont(name:size:)`의 첫 인자에 그대로 전달 |
-| `fontWeights` | `UIFont.Weight.<constant>` | `Regular → .regular`, `Medium → .medium`, `Semibold → .semibold`, `Bold → .bold` (전체 매핑은 `style-dictionary.config.js`의 `FONT_WEIGHT_MAP`) |
-| `letterSpacing` | `CGFloat(em-fraction)` | `"-0.1%"` → `CGFloat(-0.001)`. 사용처에서 `kern = fontSize * value`로 환산 |
-| `boxShadow` | `DesignTokenShadow(...)` | 동일 파일 상단의 `public struct DesignTokenShadow { offsetX, offsetY, blur, spread, color }`를 사용 |
+| `Colors+Generated.swift` | `extension ShapeStyle where Self == Color` | `.orange500` 등 dot syntax로 SwiftUI에서 사용. 내부는 `Color("Orange500", bundle: designSystemBundle)` (xcassets 참조) |
+| `Spacing+Generated.swift` | `enum Spacing` | `Spacing.spacing500: CGFloat` |
+| `Sizing+Generated.swift` | `enum Sizing` | `Sizing.sizing400: CGFloat` |
+| `BorderRadius+Generated.swift` | `enum BorderRadius` | `BorderRadius.borderRadius250: CGFloat`, `BorderRadius.borderRadiusFull: CGFloat` |
+| `BorderWidth+Generated.swift` | `enum BorderWidth` | `BorderWidth.borderWidth100: CGFloat` |
+| `Typography+Generated.swift` | `enum Typography` | `Typography.typographyWeight400: UIFont.Weight`, `Typography.typographySize400: CGFloat`, `Typography.typographyLineHeight400: CGFloat`, `Typography.typographyLetterSpacing100: CGFloat` (em-fraction) |
+| `BoxShadow+Generated.swift` | `enum BoxShadow` + `struct DesignTokenShadow` | `BoxShadow.boxShadow100`은 `DesignTokenShadow` 인스턴스 |
 
-`DesignTokenShadow`를 `CALayer`에 적용하는 예:
+`letterSpacing` 사용 예 (em-fraction → kern):
 
 ```swift
-let s = DesignTokens.boxShadow100
+let kern = Typography.typographySize400 * Typography.typographyLetterSpacing100
+```
+
+`BoxShadow`를 `CALayer`에 적용 예:
+
+```swift
+let s = BoxShadow.boxShadow100
 view.layer.shadowOffset = CGSize(width: s.offsetX, height: s.offsetY)
 view.layer.shadowRadius = s.blur / 2
 view.layer.shadowColor = s.color.cgColor
@@ -102,9 +128,7 @@ view.layer.shadowOpacity = 1
 
 1. `npm ci` → `npm run build` 로 산출물 생성
 2. 타겟 iOS 레포([`DDD-Community/DDD-13-iOS2-iOS`](https://github.com/DDD-Community/DDD-13-iOS2-iOS))를 체크아웃
-3. `build/ios/Colors.xcassets` 와 `build/ios/DesignTokens.swift` 를 다음 위치에 덮어쓰기:
-   - `Projects/Shared/DesignSystem/Resources/ColorAssets.xcassets/`
-   - `Projects/Shared/DesignSystem/Sources/Generated/DesignTokens.swift`
+3. `build/ios/` 산출물을 타겟 레포의 `Projects/Shared/DesignSystem/` 베이스 아래 정해진 위치로 덮어쓰기 ("빌드 산출물" 표 참조). `BoxShadow+Generated.swift`는 배포 단계에서 제외된다.
 4. **워크플로우 실행마다 신규 브랜치** `feature/design-tokens-sync-<YYYYMMDD-HHMMSS>` (UTC) 를 생성해 `develop` 으로 가는 PR을 연다. PR이 머지되면 브랜치는 자동 삭제(`delete-branch: true`)된다.
    - `concurrency: cancel-in-progress: true` 설정으로 디자이너가 짧은 간격으로 연속 push해도 마지막 한 번만 PR이 만들어진다 (직전 run이 취소되면 그 run의 브랜치/PR은 생성되지 않음).
 
@@ -114,10 +138,10 @@ view.layer.shadowOpacity = 1
 
 워크플로우가 동작하려면 한 번 셋업이 필요하다.
 
-1. **타겟 레포 정보 확인**: `.github/workflows/build-and-pr.yml` 의 `env` 블록에서 다음을 환경에 맞게 수정한다.
+1. **타겟 레포 정보 확인**: `.github/workflows/build-and-pr.yml` 의 `env` 블록 + "Replace generated artifacts" step 의 `copy` 호출들이 타겟 레포 디렉토리 구조와 일치하는지 확인.
    - `TARGET_REPO` — 산출물을 받을 iOS 레포 (`<owner>/<repo>`)
    - `TARGET_BRANCH_BASE` — PR base 브랜치 (보통 `main` 또는 `develop`)
-   - `ASSETS_DEST` / `SWIFT_DEST` — 타겟 레포 안의 파일 위치
+   - `IOS_BASE` — 타겟 레포의 DesignSystem 베이스 경로
 2. **PAT 발급 및 등록**:
    - GitHub Settings → Developer settings → Personal access tokens 에서 PAT 생성
    - 권한: 타겟 레포의 `Contents: Read and write`, `Pull requests: Read and write` (fine-grained 기준)

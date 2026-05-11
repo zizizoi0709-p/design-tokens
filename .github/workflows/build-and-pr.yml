@@ -22,8 +22,8 @@ concurrency:
 #      `IOS_REPO_PAT` 시크릿을 등록한다.
 #      (타겟 레포의 Contents: Read and write + Pull requests: Read and write
 #       권한을 가진 fine-grained PAT)
-#   2. 아래 env 값이 환경에 맞는지 확인한다.
-#      특히 ASSETS_DEST / SWIFT_DEST 는 타겟 레포 디렉토리 구조에 맞춰야 한다.
+#   2. 아래 env 값 / 'Replace artifacts' step 의 매핑이 타겟 레포 디렉토리
+#      구조와 일치하는지 확인한다.
 # ─────────────────────────────────────────────────────────────────────────────
 env:
   TARGET_REPO: DDD-Community/DDD-13-iOS2-iOS
@@ -31,8 +31,8 @@ env:
   # Auto-PR 브랜치는 워크플로우 실행마다 새로 생성된다.
   # 최종 이름: `feature/design-tokens-sync-YYYYMMDD-HHMMSS` (UTC).
   TARGET_BRANCH_PREFIX: feature/design-tokens-sync
-  ASSETS_DEST: Projects/Shared/DesignSystem/Resources/ColorAssets.xcassets
-  SWIFT_DEST: Projects/Shared/DesignSystem/Sources/Generated/DesignTokens.swift
+  # 타겟 레포 안 베이스 경로 (모든 산출물의 공통 prefix)
+  IOS_BASE: Projects/Shared/DesignSystem
 
 jobs:
   build-and-sync:
@@ -56,9 +56,18 @@ jobs:
       - name: Verify build outputs exist
         run: |
           set -euo pipefail
-          test -f build/ios/DesignTokens.swift
-          test -f build/ios/Colors.xcassets/Contents.json
           test -d build/ios/Colors.xcassets
+          test -f build/ios/Colors.xcassets/Contents.json
+          for f in \
+            Colors+Generated.swift \
+            Typography+Generated.swift \
+            Spacing+Generated.swift \
+            Sizing+Generated.swift \
+            BorderRadius+Generated.swift \
+            BorderWidth+Generated.swift
+          do
+            test -f "build/ios/$f" || { echo "::error::missing build/ios/$f"; exit 1; }
+          done
           colorset_count=$(find build/ios/Colors.xcassets -maxdepth 1 -name '*.colorset' -type d | wc -l)
           if [ "$colorset_count" -lt 1 ]; then
             echo "::error::No .colorset entries were generated"
@@ -87,14 +96,39 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Asset catalog: full replace (handles deleted/renamed colors)
-          rm -rf "ios-repo/${ASSETS_DEST}"
-          mkdir -p "ios-repo/$(dirname "${ASSETS_DEST}")"
-          cp -R build/ios/Colors.xcassets "ios-repo/${ASSETS_DEST}"
+          BASE="ios-repo/${IOS_BASE}"
 
-          # Swift file: simple overwrite
-          mkdir -p "ios-repo/$(dirname "${SWIFT_DEST}")"
-          cp build/ios/DesignTokens.swift "ios-repo/${SWIFT_DEST}"
+          # 1) Asset Catalog (color tokens) — full replace to handle renames/deletes.
+          rm -rf "${BASE}/Resources/Colors.xcassets"
+          mkdir -p "${BASE}/Resources"
+          cp -R build/ios/Colors.xcassets "${BASE}/Resources/Colors.xcassets"
+
+          # 2) Per-category Swift files — overwrite at the iOS team's documented paths.
+          #
+          #    src (build/ios/...)               → dest (relative to IOS_BASE/)
+          #    ------------------------------    ----------------------------------------------------
+          #    Colors+Generated.swift            → Sources/Color/Generated/Colors+Generated.swift
+          #    Typography+Generated.swift        → Sources/CustomFont/Generated/Typography+Generated.swift
+          #    Spacing+Generated.swift           → Sources/Spacing/Generated/Spacing+Generated.swift
+          #    Sizing+Generated.swift            → Sources/Sizing/Generated/Sizing+Generated.swift
+          #    BorderRadius+Generated.swift      → Sources/BorderRadius/Generated/BorderRadius+Generated.swift
+          #    BorderWidth+Generated.swift       → Sources/BorderWidth/Generated/BorderWidth+Generated.swift
+          #
+          # BoxShadow+Generated.swift는 생성은 되지만 iOS팀 매핑표에 없어 배포에서 제외.
+          copy() {
+            local src="build/ios/$1"
+            local dest="${BASE}/$2"
+            mkdir -p "$(dirname "${dest}")"
+            cp "${src}" "${dest}"
+            echo "  copied → ${dest#ios-repo/}"
+          }
+
+          copy "Colors+Generated.swift"       "Sources/Color/Generated/Colors+Generated.swift"
+          copy "Typography+Generated.swift"   "Sources/CustomFont/Generated/Typography+Generated.swift"
+          copy "Spacing+Generated.swift"      "Sources/Spacing/Generated/Spacing+Generated.swift"
+          copy "Sizing+Generated.swift"       "Sources/Sizing/Generated/Sizing+Generated.swift"
+          copy "BorderRadius+Generated.swift" "Sources/BorderRadius/Generated/BorderRadius+Generated.swift"
+          copy "BorderWidth+Generated.swift"  "Sources/BorderWidth/Generated/BorderWidth+Generated.swift"
 
       - name: Open PR in target repo
         uses: peter-evans/create-pull-request@v6
@@ -120,9 +154,14 @@ jobs:
             **Workflow run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             **Branch**: `${{ steps.branch.outputs.name }}` → `${{ env.TARGET_BRANCH_BASE }}`
 
-            ### 변경된 파일
-            - `${{ env.ASSETS_DEST }}` (Asset Catalog)
-            - `${{ env.SWIFT_DEST }}` (DesignTokens.swift)
+            ### 변경된 파일 (베이스: `${{ env.IOS_BASE }}/`)
+            - `Resources/Colors.xcassets/` (Asset Catalog)
+            - `Sources/Color/Generated/Colors+Generated.swift`
+            - `Sources/CustomFont/Generated/Typography+Generated.swift`
+            - `Sources/Spacing/Generated/Spacing+Generated.swift`
+            - `Sources/Sizing/Generated/Sizing+Generated.swift`
+            - `Sources/BorderRadius/Generated/BorderRadius+Generated.swift`
+            - `Sources/BorderWidth/Generated/BorderWidth+Generated.swift`
 
             > 자동 생성된 PR입니다. 토큰 변경 시마다 새 브랜치/새 PR이 생성되므로
             > 머지하지 않은 채로 누적될 수 있습니다. 머지 후엔 브랜치가 자동 삭제됩니다.
