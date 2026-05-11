@@ -65,6 +65,7 @@ jobs:
             Sizing+Generated.swift \
             BorderRadius+Generated.swift \
             BorderWidth+Generated.swift \
+            Opacity+Generated.swift \
             BoxShadow+Generated.swift
           do
             test -f "build/ios/$f" || { echo "::error::missing build/ios/$f"; exit 1; }
@@ -114,6 +115,7 @@ jobs:
           #    Sizing+Generated.swift            → Sources/Tokens/Generated/Sizing+Generated.swift
           #    BorderRadius+Generated.swift      → Sources/Tokens/Generated/BorderRadius+Generated.swift
           #    BorderWidth+Generated.swift       → Sources/Tokens/Generated/BorderWidth+Generated.swift
+          #    Opacity+Generated.swift           → Sources/Tokens/Generated/Opacity+Generated.swift
           #    BoxShadow+Generated.swift         → Sources/Tokens/Generated/BoxShadow+Generated.swift
           copy() {
             local src="build/ios/$1"
@@ -129,6 +131,7 @@ jobs:
           copy "Sizing+Generated.swift"       "Sources/Tokens/Generated/Sizing+Generated.swift"
           copy "BorderRadius+Generated.swift" "Sources/Tokens/Generated/BorderRadius+Generated.swift"
           copy "BorderWidth+Generated.swift"  "Sources/Tokens/Generated/BorderWidth+Generated.swift"
+          copy "Opacity+Generated.swift"      "Sources/Tokens/Generated/Opacity+Generated.swift"
           copy "BoxShadow+Generated.swift"    "Sources/Tokens/Generated/BoxShadow+Generated.swift"
 
       - name: Open PR in target repo
@@ -163,6 +166,7 @@ jobs:
             - `Sources/Tokens/Generated/Sizing+Generated.swift`
             - `Sources/Tokens/Generated/BorderRadius+Generated.swift`
             - `Sources/Tokens/Generated/BorderWidth+Generated.swift`
+            - `Sources/Tokens/Generated/Opacity+Generated.swift`
             - `Sources/Tokens/Generated/BoxShadow+Generated.swift`
 
             ### 머지 후 작업

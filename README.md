@@ -25,6 +25,7 @@ Tokens Studio(Figma)에서 정의한 디자인 토큰을 Style Dictionary로 변
 │  ├─ Sizing+Generated.swift           │
 │  ├─ BorderRadius+Generated.swift     │
 │  ├─ BorderWidth+Generated.swift      │
+│  ├─ Opacity+Generated.swift          │
 │  ├─ Typography+Generated.swift       │
 │  └─ BoxShadow+Generated.swift        │
 └──────────┬───────────────────────────┘
@@ -66,6 +67,7 @@ iOS 팀의 디렉토리 컨벤션에 맞춰 **카테고리별로 분리된 7개 
 | Sizing | `build/ios/Sizing+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/Sizing+Generated.swift` |
 | BorderRadius | `build/ios/BorderRadius+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/BorderRadius+Generated.swift` |
 | BorderWidth | `build/ios/BorderWidth+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/BorderWidth+Generated.swift` |
+| Opacity | `build/ios/Opacity+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/Opacity+Generated.swift` |
 | BoxShadow | `build/ios/BoxShadow+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/BoxShadow+Generated.swift` |
 
 배제된 토큰:
@@ -102,6 +104,7 @@ iOS 팀의 디렉토리 컨벤션에 맞춰 **카테고리별로 분리된 7개 
 | `Sizing+Generated.swift` | `enum Sizing` | `Sizing.sizing400: CGFloat` |
 | `BorderRadius+Generated.swift` | `enum BorderRadius` | `BorderRadius.borderRadius250: CGFloat`, `BorderRadius.borderRadiusFull: CGFloat` |
 | `BorderWidth+Generated.swift` | `enum BorderWidth` | `BorderWidth.borderWidth100: CGFloat` |
+| `Opacity+Generated.swift` | `enum Opacity` | `Opacity.opacity500: CGFloat` (0.0–1.0 분수, 토큰의 `"40%"` → `0.4`) |
 | `Typography+Generated.swift` | `enum Typography` | `Typography.typographyWeight400: UIFont.Weight`, `Typography.typographySize400: CGFloat`, `Typography.typographyLineHeight400: CGFloat`, `Typography.typographyLetterSpacing100: CGFloat` (em-fraction) |
 | `BoxShadow+Generated.swift` | `enum BoxShadow` + `struct DesignTokenShadow` | `BoxShadow.boxShadow100`은 `DesignTokenShadow` 인스턴스 |
 
