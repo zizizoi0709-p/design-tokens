@@ -26,7 +26,7 @@ Tokens Studio(Figma)에서 정의한 디자인 토큰을 Style Dictionary로 변
            │ (.github/workflows/build-and-pr.yml)
            ▼
 ┌──────────────────────────────────────┐
-│  iOS repo (Bangawo)                  │
+│  iOS repo (DDD-13-iOS2-iOS)          │
 │  · 고정 브랜치 design-tokens/auto-sync│
 │  · PR 자동 생성/갱신                  │
 └──────────────────────────────────────┘
@@ -101,7 +101,7 @@ view.layer.shadowOpacity = 1
 `tokens.json`(또는 빌드 관련 파일)이 `main`에 push되면 워크플로우가 자동 실행되어 다음을 수행한다.
 
 1. `npm ci` → `npm run build` 로 산출물 생성
-2. 타겟 iOS 레포(현재 기본값: `zizizoi0709-p/Bangawo`)를 체크아웃
+2. 타겟 iOS 레포([`DDD-Community/DDD-13-iOS2-iOS`](https://github.com/DDD-Community/DDD-13-iOS2-iOS))를 체크아웃
 3. `build/ios/Colors.xcassets` 와 `build/ios/DesignTokens.swift` 를 다음 위치에 덮어쓰기:
    - `Projects/Shared/DesignSystem/Resources/ColorAssets.xcassets/`
    - `Projects/Shared/DesignSystem/Sources/Generated/DesignTokens.swift`
@@ -121,7 +121,7 @@ view.layer.shadowOpacity = 1
 2. **PAT 발급 및 등록**:
    - GitHub Settings → Developer settings → Personal access tokens 에서 PAT 생성
    - 권한: 타겟 레포의 `Contents: Read and write`, `Pull requests: Read and write` (fine-grained 기준)
-   - 이 레포의 Settings → Secrets and variables → Actions 에서 `BANGAWO_PAT` 라는 이름으로 등록
+   - 이 레포의 Settings → Secrets and variables → Actions 에서 `IOS_REPO_PAT` 라는 이름으로 등록
 3. **수동 테스트**: Actions 탭 → "Build and sync to iOS repo" 워크플로우 → "Run workflow" 로 첫 실행 확인
 
 PAT 대신 GitHub App 을 쓰는 게 운영 환경에서는 더 안전하다 (개인 계정에 의존하지 않고 조직 레벨에서 권한 관리). 셋업 단계에서는 PAT 로 시작하고, 안정화되면 GitHub App 으로 교체할 것을 권장.
