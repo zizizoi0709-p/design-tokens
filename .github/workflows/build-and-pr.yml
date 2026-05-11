@@ -17,19 +17,16 @@ concurrency:
   cancel-in-progress: true
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 사용 전에 확인 / 수정해야 하는 값들 ↓↓↓
-#   TARGET_REPO         : 산출물을 받을 iOS 레포 (owner/name)
-#   TARGET_BRANCH_BASE  : Bangawo 측 PR base 브랜치 (보통 main 또는 develop)
-#   TARGET_BRANCH_NAME  : 자동 PR이 사용할 브랜치 (재사용 — PR 1개로 누적)
-#   ASSETS_DEST         : Bangawo 안 Asset Catalog 위치
-#   SWIFT_DEST          : Bangawo 안 DesignTokens.swift 위치
-#
-# 그리고 이 레포의 Settings → Secrets and variables → Actions 에
-# `BANGAWO_PAT` 시크릿(타겟 레포의 contents:write + pull-requests:write 권한
-# 가진 PAT) 을 등록해야 한다.
+# 사용 전 사전 준비:
+#   1. 이 레포의 Settings → Secrets and variables → Actions 에
+#      `IOS_REPO_PAT` 시크릿을 등록한다.
+#      (타겟 레포의 Contents: Read and write + Pull requests: Read and write
+#       권한을 가진 fine-grained PAT)
+#   2. 아래 env 값이 환경에 맞는지 확인한다.
+#      특히 ASSETS_DEST / SWIFT_DEST 는 타겟 레포 디렉토리 구조에 맞춰야 한다.
 # ─────────────────────────────────────────────────────────────────────────────
 env:
-  TARGET_REPO: zizizoi0709-p/Bangawo
+  TARGET_REPO: DDD-Community/DDD-13-iOS2-iOS
   TARGET_BRANCH_BASE: main
   TARGET_BRANCH_NAME: design-tokens/auto-sync
   ASSETS_DEST: Projects/Shared/DesignSystem/Resources/ColorAssets.xcassets
@@ -71,8 +68,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.TARGET_REPO }}
-          token: ${{ secrets.BANGAWO_PAT }}
-          path: bangawo
+          token: ${{ secrets.IOS_REPO_PAT }}
+          path: ios-repo
           ref: ${{ env.TARGET_BRANCH_BASE }}
           fetch-depth: 0
 
@@ -81,19 +78,19 @@ jobs:
           set -euo pipefail
 
           # Asset catalog: full replace (handles deleted/renamed colors)
-          rm -rf "bangawo/${ASSETS_DEST}"
-          mkdir -p "bangawo/$(dirname "${ASSETS_DEST}")"
-          cp -R build/ios/Colors.xcassets "bangawo/${ASSETS_DEST}"
+          rm -rf "ios-repo/${ASSETS_DEST}"
+          mkdir -p "ios-repo/$(dirname "${ASSETS_DEST}")"
+          cp -R build/ios/Colors.xcassets "ios-repo/${ASSETS_DEST}"
 
           # Swift file: simple overwrite
-          mkdir -p "bangawo/$(dirname "${SWIFT_DEST}")"
-          cp build/ios/DesignTokens.swift "bangawo/${SWIFT_DEST}"
+          mkdir -p "ios-repo/$(dirname "${SWIFT_DEST}")"
+          cp build/ios/DesignTokens.swift "ios-repo/${SWIFT_DEST}"
 
       - name: Open / update PR in target repo
         uses: peter-evans/create-pull-request@v6
         with:
-          path: bangawo
-          token: ${{ secrets.BANGAWO_PAT }}
+          path: ios-repo
+          token: ${{ secrets.IOS_REPO_PAT }}
           base: ${{ env.TARGET_BRANCH_BASE }}
           branch: ${{ env.TARGET_BRANCH_NAME }}
           delete-branch: false
