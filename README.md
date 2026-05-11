@@ -25,11 +25,11 @@ Tokens Studio(Figma)에서 정의한 디자인 토큰을 Style Dictionary로 변
            │ GitHub Actions
            │ (.github/workflows/build-and-pr.yml)
            ▼
-┌──────────────────────────────────────┐
-│  iOS repo (DDD-13-iOS2-iOS)          │
-│  · 고정 브랜치 design-tokens/auto-sync│
-│  · PR 자동 생성/갱신                  │
-└──────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│  iOS repo (DDD-13-iOS2-iOS)                      │
+│  · 브랜치 feature/design-tokens-sync-<timestamp> │
+│    → develop 으로 PR 생성 (push마다 신규)         │
+└──────────────────────────────────────────────────┘
 ```
 
 ## 로컬 빌드
@@ -105,8 +105,8 @@ view.layer.shadowOpacity = 1
 3. `build/ios/Colors.xcassets` 와 `build/ios/DesignTokens.swift` 를 다음 위치에 덮어쓰기:
    - `Projects/Shared/DesignSystem/Resources/ColorAssets.xcassets/`
    - `Projects/Shared/DesignSystem/Sources/Generated/DesignTokens.swift`
-4. **고정 브랜치 `design-tokens/auto-sync`** 에 푸시하고 PR을 1개 유지
-   (이미 PR이 열려 있으면 같은 PR에 커밋이 누적됨 — 디자이너의 연속 push가 PR 폭발로 이어지지 않음)
+4. **워크플로우 실행마다 신규 브랜치** `feature/design-tokens-sync-<YYYYMMDD-HHMMSS>` (UTC) 를 생성해 `develop` 으로 가는 PR을 연다. PR이 머지되면 브랜치는 자동 삭제(`delete-branch: true`)된다.
+   - `concurrency: cancel-in-progress: true` 설정으로 디자이너가 짧은 간격으로 연속 push해도 마지막 한 번만 PR이 만들어진다 (직전 run이 취소되면 그 run의 브랜치/PR은 생성되지 않음).
 
 산출물은 이 레포에는 커밋되지 않는다 (`build/`는 `.gitignore`에 포함). 항상 빌드 결과는 타겟 iOS 레포에서만 보존된다.
 
