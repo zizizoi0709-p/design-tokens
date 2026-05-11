@@ -28,7 +28,9 @@ concurrency:
 env:
   TARGET_REPO: DDD-Community/DDD-13-iOS2-iOS
   TARGET_BRANCH_BASE: develop
-  TARGET_BRANCH_NAME: design-tokens/auto-sync
+  # Auto-PR 브랜치는 워크플로우 실행마다 새로 생성된다.
+  # 최종 이름: `feature/design-tokens-sync-YYYYMMDD-HHMMSS` (UTC).
+  TARGET_BRANCH_PREFIX: feature/design-tokens-sync
   ASSETS_DEST: Projects/Shared/DesignSystem/Resources/ColorAssets.xcassets
   SWIFT_DEST: Projects/Shared/DesignSystem/Sources/Generated/DesignTokens.swift
 
@@ -64,6 +66,14 @@ jobs:
           fi
           echo "Generated $colorset_count colorset entries"
 
+      - name: Compute timestamped branch name
+        id: branch
+        run: |
+          ts=$(date -u +'%Y%m%d-%H%M%S')
+          name="${TARGET_BRANCH_PREFIX}-${ts}"
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
+          echo "Auto-PR branch: ${name}"
+
       - name: Checkout target iOS repo
         uses: actions/checkout@v4
         with:
@@ -86,14 +96,14 @@ jobs:
           mkdir -p "ios-repo/$(dirname "${SWIFT_DEST}")"
           cp build/ios/DesignTokens.swift "ios-repo/${SWIFT_DEST}"
 
-      - name: Open / update PR in target repo
+      - name: Open PR in target repo
         uses: peter-evans/create-pull-request@v6
         with:
           path: ios-repo
           token: ${{ secrets.IOS_REPO_PAT }}
           base: ${{ env.TARGET_BRANCH_BASE }}
-          branch: ${{ env.TARGET_BRANCH_NAME }}
-          delete-branch: false
+          branch: ${{ steps.branch.outputs.name }}
+          delete-branch: true
           title: ':art: chore: design-tokens 자동 반영'
           commit-message: |
             :art: chore: design-tokens 자동 반영
@@ -108,11 +118,11 @@ jobs:
             **Source**: [`${{ github.repository }}@${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
             **Trigger**: `${{ github.event_name }}` on `${{ github.ref_name }}`
             **Workflow run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            **Branch**: `${{ steps.branch.outputs.name }}` → `${{ env.TARGET_BRANCH_BASE }}`
 
             ### 변경된 파일
             - `${{ env.ASSETS_DEST }}` (Asset Catalog)
             - `${{ env.SWIFT_DEST }}` (DesignTokens.swift)
 
-            > 자동 생성된 PR입니다. 같은 브랜치(`${{ env.TARGET_BRANCH_NAME }}`)를 재사용하므로
-            > 디자인 토큰 변경 시마다 이 PR에 커밋이 누적됩니다.
-            > 직접 편집해도 다음 토큰 변경 시 덮어쓰기됩니다.
+            > 자동 생성된 PR입니다. 토큰 변경 시마다 새 브랜치/새 PR이 생성되므로
+            > 머지하지 않은 채로 누적될 수 있습니다. 머지 후엔 브랜치가 자동 삭제됩니다.
