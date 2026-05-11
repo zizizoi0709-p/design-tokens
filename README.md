@@ -70,8 +70,7 @@ iOS 팀의 디렉토리 컨벤션에 맞춰 **카테고리별로 분리된 7개 
 | Opacity | `build/ios/Opacity+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/Opacity+Generated.swift` |
 | BoxShadow | `build/ios/BoxShadow+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/BoxShadow+Generated.swift` |
 
-배제된 토큰:
-- **fontFamilies (`"Pretendard"`)**: 기존 `PretendardFontFamily.swift`가 수동으로 관리하므로 Typography 출력에 미포함.
+primitiveCore 의 모든 토큰이 출력에 포함된다 (배제 토큰 없음).
 
 ## 토큰 셋 구조 (`tokens.json`)
 
@@ -105,7 +104,7 @@ iOS 팀의 디렉토리 컨벤션에 맞춰 **카테고리별로 분리된 7개 
 | `BorderRadius+Generated.swift` | `enum BorderRadius` | `BorderRadius.borderRadius250: CGFloat`, `BorderRadius.borderRadiusFull: CGFloat` |
 | `BorderWidth+Generated.swift` | `enum BorderWidth` | `BorderWidth.borderWidth100: CGFloat` |
 | `Opacity+Generated.swift` | `enum Opacity` | `Opacity.opacity500: CGFloat` (0.0–1.0 분수, 토큰의 `"40%"` → `0.4`) |
-| `Typography+Generated.swift` | `enum Typography` | `Typography.typographyWeight400: UIFont.Weight`, `Typography.typographySize400: CGFloat`, `Typography.typographyLineHeight400: CGFloat`, `Typography.typographyLetterSpacing100: CGFloat` (em-fraction) |
+| `Typography+Generated.swift` | `enum Typography` | `Typography.typographyFontFamily: String`(`"Pretendard"`), `Typography.typographyWeight400: UIFont.Weight`, `Typography.typographySize400: CGFloat`, `Typography.typographyLineHeight400: CGFloat`, `Typography.typographyLetterSpacing100: CGFloat` (em-fraction) |
 | `BoxShadow+Generated.swift` | `enum BoxShadow` + `struct DesignTokenShadow` | `BoxShadow.boxShadow100`은 `DesignTokenShadow` 인스턴스 |
 
 `letterSpacing` 사용 예 (em-fraction → kern):
