@@ -75,6 +75,14 @@ StyleDictionary.registerTransform({
   },
 });
 
+// fontFamilies → quoted Swift string literal (e.g. `"Pretendard"`).
+StyleDictionary.registerTransform({
+  name: 'value/swift/fontFamily',
+  type: 'value',
+  filter: (token) => token.type === 'fontFamilies',
+  transform: (token) => `"${String(token.value).replace(/"/g, '\\"')}"`,
+});
+
 // fontWeights ("Regular"/"Medium"/...) → `.<constant>`.
 // Used with `: UIFont.Weight = .regular` annotation at the format level.
 StyleDictionary.registerTransform({
@@ -479,9 +487,8 @@ const BORDER_WIDTH_SECTIONS = [
 const OPACITY_SECTIONS = [
   { type: 'opacity', title: 'Opacity', swiftType: 'CGFloat' },
 ];
-// fontFamilies is excluded — iOS team manages it manually via
-// PretendardFontFamily.swift. We only emit weight/size/lineHeight/letterSpacing.
 const TYPOGRAPHY_SECTIONS = [
+  { type: 'fontFamilies', title: 'Font Family', swiftType: 'String' },
   { type: 'fontWeights', title: 'Font Weight', swiftType: 'UIFont.Weight' },
   { type: 'fontSizes', title: 'Font Size', swiftType: 'CGFloat' },
   { type: 'lineHeights', title: 'Line Height', swiftType: 'CGFloat' },
@@ -519,6 +526,7 @@ export default {
       transforms: [
         'name/leaf',
         'value/swift/cgfloat',
+        'value/swift/fontFamily',
         'value/swift/fontWeight',
         'value/swift/letterSpacing',
         'value/swift/opacity',
@@ -585,13 +593,13 @@ export default {
             importStatement: 'CoreGraphics',
           },
         },
-        // Typography combines weight/size/lineHeight/letterSpacing.
-        // fontFamilies는 iOS팀이 별도 관리(PretendardFontFamily.swift)하므로 미포함.
+        // Typography combines fontFamily/Weight/Size/LineHeight/LetterSpacing
+        // — primitiveCore.typography 의 모든 하위 그룹.
         {
           destination: 'Typography+Generated.swift',
           format: 'ios-swift/sectionedEnum',
           filter: (token) =>
-            ['fontWeights', 'fontSizes', 'lineHeights', 'letterSpacing'].includes(
+            ['fontFamilies', 'fontWeights', 'fontSizes', 'lineHeights', 'letterSpacing'].includes(
               token.type,
             ),
           options: {
