@@ -338,10 +338,13 @@ function fileHeader(destination) {
   ];
 }
 
-// Build a SwiftUI `extension ShapeStyle where Self == Color` whose properties
-// reference the generated Asset Catalog (`Colors.xcassets`). The bundle is
-// resolved via a private `BundleToken` so the file works regardless of how
-// `Bundle.module` ends up being exposed by Tuist.
+// Build a SwiftUI `enum Colors` namespace whose properties reference the
+// generated Asset Catalog (`Colors.xcassets`). Using a dedicated namespace
+// (instead of `extension ShapeStyle where Self == Color`) keeps token access
+// site (`Colors.blue500`) distinct from raw `Color` literals and avoids
+// colliding with hand-written color extensions during migration.
+// The bundle is resolved via a private `BundleToken` so the file works
+// regardless of how `Bundle.module` ends up being exposed by Tuist.
 StyleDictionary.registerFormat({
   name: 'ios-swift/colorAccessor',
   format: ({ file }) => {
@@ -373,7 +376,7 @@ StyleDictionary.registerFormat({
       'private final class DesignSystemBundleToken {}',
       'private let designSystemBundle = Bundle(for: DesignSystemBundleToken.self)',
       '',
-      'public extension ShapeStyle where Self == Color {',
+      'public enum Colors {',
     ];
 
     let currentFamily = null;
@@ -384,7 +387,7 @@ StyleDictionary.registerFormat({
         currentFamily = e.family;
       }
       lines.push(
-        `    static var ${e.swiftName}: Color { Color("${e.assetName}", bundle: designSystemBundle) }`,
+        `    public static let ${e.swiftName}: Color = Color("${e.assetName}", bundle: designSystemBundle)`,
       );
     }
 

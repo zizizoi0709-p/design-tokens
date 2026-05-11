@@ -62,15 +62,14 @@ iOS 팀의 디렉토리 컨벤션에 맞춰 **카테고리별로 분리된 7개 
 | Color (xcassets) | `build/ios/Colors.xcassets/` | `Projects/Shared/DesignSystem/Resources/Colors.xcassets/` |
 | Color (Swift accessor) | `build/ios/Colors+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Color/Generated/Colors+Generated.swift` |
 | Typography | `build/ios/Typography+Generated.swift` | `Projects/Shared/DesignSystem/Sources/CustomFont/Generated/Typography+Generated.swift` |
-| Spacing | `build/ios/Spacing+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Spacing/Generated/Spacing+Generated.swift` |
-| Sizing | `build/ios/Sizing+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Sizing/Generated/Sizing+Generated.swift` |
-| BorderRadius | `build/ios/BorderRadius+Generated.swift` | `Projects/Shared/DesignSystem/Sources/BorderRadius/Generated/BorderRadius+Generated.swift` |
-| BorderWidth | `build/ios/BorderWidth+Generated.swift` | `Projects/Shared/DesignSystem/Sources/BorderWidth/Generated/BorderWidth+Generated.swift` |
-| BoxShadow | `build/ios/BoxShadow+Generated.swift` | _(미배포 — 빌드만 됨)_ |
+| Spacing | `build/ios/Spacing+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/Spacing+Generated.swift` |
+| Sizing | `build/ios/Sizing+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/Sizing+Generated.swift` |
+| BorderRadius | `build/ios/BorderRadius+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/BorderRadius+Generated.swift` |
+| BorderWidth | `build/ios/BorderWidth+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/BorderWidth+Generated.swift` |
+| BoxShadow | `build/ios/BoxShadow+Generated.swift` | `Projects/Shared/DesignSystem/Sources/Tokens/Generated/BoxShadow+Generated.swift` |
 
 배제된 토큰:
 - **fontFamilies (`"Pretendard"`)**: 기존 `PretendardFontFamily.swift`가 수동으로 관리하므로 Typography 출력에 미포함.
-- **boxShadow**: iOS팀 배치표에 미명시. 빌드는 되나 워크플로우 복사 단계에서 제외. 필요 시 워크플로우 한 줄 추가로 활성화 가능.
 
 ## 토큰 셋 구조 (`tokens.json`)
 
@@ -98,7 +97,7 @@ iOS 팀의 디렉토리 컨벤션에 맞춰 **카테고리별로 분리된 7개 
 
 | 파일 | Swift 진입점 | 표현 |
 | --- | --- | --- |
-| `Colors+Generated.swift` | `extension ShapeStyle where Self == Color` | `.orange500` 등 dot syntax로 SwiftUI에서 사용. 내부는 `Color("Orange500", bundle: designSystemBundle)` (xcassets 참조) |
+| `Colors+Generated.swift` | `enum Colors` | `Colors.orange500: Color` (`Color("Orange500", bundle: designSystemBundle)` 로 xcassets 참조). 다른 카테고리와 동일한 enum 네임스페이스 패턴 |
 | `Spacing+Generated.swift` | `enum Spacing` | `Spacing.spacing500: CGFloat` |
 | `Sizing+Generated.swift` | `enum Sizing` | `Sizing.sizing400: CGFloat` |
 | `BorderRadius+Generated.swift` | `enum BorderRadius` | `BorderRadius.borderRadius250: CGFloat`, `BorderRadius.borderRadiusFull: CGFloat` |

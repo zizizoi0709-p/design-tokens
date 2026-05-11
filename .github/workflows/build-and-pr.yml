@@ -29,8 +29,8 @@ env:
   TARGET_REPO: DDD-Community/DDD-13-iOS2-iOS
   TARGET_BRANCH_BASE: develop
   # Auto-PR 브랜치는 워크플로우 실행마다 새로 생성된다.
-  # 최종 이름: `feature/design-tokens-sync-YYYYMMDD-HHMMSS` (UTC).
-  TARGET_BRANCH_PREFIX: feature/design-tokens-sync
+  # 최종 이름: `chore/design-tokens-sync-YYYYMMDD-HHMMSS` (UTC).
+  TARGET_BRANCH_PREFIX: chore/design-tokens-sync
   # 타겟 레포 안 베이스 경로 (모든 산출물의 공통 prefix)
   IOS_BASE: Projects/Shared/DesignSystem
 
@@ -64,7 +64,8 @@ jobs:
             Spacing+Generated.swift \
             Sizing+Generated.swift \
             BorderRadius+Generated.swift \
-            BorderWidth+Generated.swift
+            BorderWidth+Generated.swift \
+            BoxShadow+Generated.swift
           do
             test -f "build/ios/$f" || { echo "::error::missing build/ios/$f"; exit 1; }
           done
@@ -109,12 +110,11 @@ jobs:
           #    ------------------------------    ----------------------------------------------------
           #    Colors+Generated.swift            → Sources/Color/Generated/Colors+Generated.swift
           #    Typography+Generated.swift        → Sources/CustomFont/Generated/Typography+Generated.swift
-          #    Spacing+Generated.swift           → Sources/Spacing/Generated/Spacing+Generated.swift
-          #    Sizing+Generated.swift            → Sources/Sizing/Generated/Sizing+Generated.swift
-          #    BorderRadius+Generated.swift      → Sources/BorderRadius/Generated/BorderRadius+Generated.swift
-          #    BorderWidth+Generated.swift       → Sources/BorderWidth/Generated/BorderWidth+Generated.swift
-          #
-          # BoxShadow+Generated.swift는 생성은 되지만 iOS팀 매핑표에 없어 배포에서 제외.
+          #    Spacing+Generated.swift           → Sources/Tokens/Generated/Spacing+Generated.swift
+          #    Sizing+Generated.swift            → Sources/Tokens/Generated/Sizing+Generated.swift
+          #    BorderRadius+Generated.swift      → Sources/Tokens/Generated/BorderRadius+Generated.swift
+          #    BorderWidth+Generated.swift       → Sources/Tokens/Generated/BorderWidth+Generated.swift
+          #    BoxShadow+Generated.swift         → Sources/Tokens/Generated/BoxShadow+Generated.swift
           copy() {
             local src="build/ios/$1"
             local dest="${BASE}/$2"
@@ -125,10 +125,11 @@ jobs:
 
           copy "Colors+Generated.swift"       "Sources/Color/Generated/Colors+Generated.swift"
           copy "Typography+Generated.swift"   "Sources/CustomFont/Generated/Typography+Generated.swift"
-          copy "Spacing+Generated.swift"      "Sources/Spacing/Generated/Spacing+Generated.swift"
-          copy "Sizing+Generated.swift"       "Sources/Sizing/Generated/Sizing+Generated.swift"
-          copy "BorderRadius+Generated.swift" "Sources/BorderRadius/Generated/BorderRadius+Generated.swift"
-          copy "BorderWidth+Generated.swift"  "Sources/BorderWidth/Generated/BorderWidth+Generated.swift"
+          copy "Spacing+Generated.swift"      "Sources/Tokens/Generated/Spacing+Generated.swift"
+          copy "Sizing+Generated.swift"       "Sources/Tokens/Generated/Sizing+Generated.swift"
+          copy "BorderRadius+Generated.swift" "Sources/Tokens/Generated/BorderRadius+Generated.swift"
+          copy "BorderWidth+Generated.swift"  "Sources/Tokens/Generated/BorderWidth+Generated.swift"
+          copy "BoxShadow+Generated.swift"    "Sources/Tokens/Generated/BoxShadow+Generated.swift"
 
       - name: Open PR in target repo
         uses: peter-evans/create-pull-request@v6
@@ -138,9 +139,9 @@ jobs:
           base: ${{ env.TARGET_BRANCH_BASE }}
           branch: ${{ steps.branch.outputs.name }}
           delete-branch: true
-          title: ':art: chore: design-tokens 자동 반영'
+          title: '[CHORE] design-tokens 자동 반영'
           commit-message: |
-            :art: chore: design-tokens 자동 반영
+            [CHORE]: design-tokens 자동 반영
 
             source: ${{ github.repository }}@${{ github.sha }}
           labels: |
@@ -158,10 +159,18 @@ jobs:
             - `Resources/Colors.xcassets/` (Asset Catalog)
             - `Sources/Color/Generated/Colors+Generated.swift`
             - `Sources/CustomFont/Generated/Typography+Generated.swift`
-            - `Sources/Spacing/Generated/Spacing+Generated.swift`
-            - `Sources/Sizing/Generated/Sizing+Generated.swift`
-            - `Sources/BorderRadius/Generated/BorderRadius+Generated.swift`
-            - `Sources/BorderWidth/Generated/BorderWidth+Generated.swift`
+            - `Sources/Tokens/Generated/Spacing+Generated.swift`
+            - `Sources/Tokens/Generated/Sizing+Generated.swift`
+            - `Sources/Tokens/Generated/BorderRadius+Generated.swift`
+            - `Sources/Tokens/Generated/BorderWidth+Generated.swift`
+            - `Sources/Tokens/Generated/BoxShadow+Generated.swift`
+
+            ### 머지 후 작업
+            신규 파일이 Xcode 프로젝트에 반영되도록 로컬에서 아래를 실행한다.
+
+            ```bash
+            ./tuisttool generate && tuist graph
+            ```
 
             > 자동 생성된 PR입니다. 토큰 변경 시마다 새 브랜치/새 PR이 생성되므로
             > 머지하지 않은 채로 누적될 수 있습니다. 머지 후엔 브랜치가 자동 삭제됩니다.
