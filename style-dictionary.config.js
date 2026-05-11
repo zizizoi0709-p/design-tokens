@@ -9,9 +9,9 @@ const tokensFile = JSON.parse(
   fs.readFileSync(new URL('./tokens.json', import.meta.url), 'utf-8'),
 );
 
-const CORE_SET = 'primitives/ coreTokens';
-const LIGHT_SET = 'primitives/colorLight';
-const DARK_SET = 'primitives/colorDark';
+const CORE_SET = 'primitiveCore';
+const LIGHT_SET = 'primitivesLight';
+const DARK_SET = 'primitivesDark';
 
 const core = tokensFile[CORE_SET];
 const light = tokensFile[LIGHT_SET];
@@ -112,6 +112,24 @@ StyleDictionary.registerTransform({
   },
 });
 
+// opacity ("X%") → 0.0–1.0 CGFloat literal.
+StyleDictionary.registerTransform({
+  name: 'value/swift/opacity',
+  type: 'value',
+  filter: (token) => token.type === 'opacity',
+  transform: (token) => {
+    const raw = String(token.value).trim();
+    const num = parseFloat(raw);
+    if (Number.isNaN(num)) {
+      throw new Error(
+        `Cannot parse opacity at "${token.path.join('.')}": ${token.value}`,
+      );
+    }
+    const fraction = Number((num / 100).toFixed(4));
+    return String(fraction);
+  },
+});
+
 // boxShadow object → multi-line `DesignTokenShadow(...)` constructor literal.
 // Field types (CGFloat) are declared on the struct, so call sites can pass bare
 // numeric literals without `CGFloat(...)` wrapping.
@@ -156,15 +174,14 @@ function pascalCase(segment) {
 }
 
 function colorsetName(segments) {
-  // Drop synthetic grouping segments so that
-  //   color.orange.500            → Orange500
-  //   color.orangeAlpha.100       → OrangeAlpha100
-  //   color.static.white          → White
-  //   color.static.whiteAlpha.100 → WhiteAlpha100
-  return segments
-    .filter((s) => s !== 'color' && s !== 'static')
-    .map(pascalCase)
-    .join('');
+  // 토큰 정리 (디자이너 측 WORKPLAN 스텝1) 이후 leaf 키 자체가 그룹 prefix를
+  // 포함한다. 즉 path는 ['color', 'orange', 'orange500'] / ['color', 'static', 'white']
+  // 등으로, 마지막 leaf만 PascalCase 변환하면 그대로 colorset 이름이 된다.
+  //   color.orange.orange500       → Orange500
+  //   color.orangeAlpha.orangeAlpha100 → OrangeAlpha100
+  //   color.static.white           → White
+  const leaf = segments[segments.length - 1];
+  return pascalCase(leaf);
 }
 
 function hexToComponents(hex, tokenPath) {
@@ -218,36 +235,19 @@ function hexToFloatRgba(hex, tokenPath) {
 }
 
 function findDarkValue(lightPath, darkColors) {
-  // Direct match
+  // 토큰 정리 이후 light/dark가 동일한 그룹/키 구조를 유지하므로 단순 경로
+  // 추적만으로 매칭된다. (예전엔 `orangeAlpha` ↔ `orangeDarkAlpha` 같은
+  // 별칭 매핑이 필요했지만 더 이상 아님.)
   let cur = darkColors;
   for (const seg of lightPath) {
     if (cur && typeof cur === 'object' && seg in cur) {
       cur = cur[seg];
     } else {
-      cur = undefined;
-      break;
+      return null;
     }
   }
   if (cur && typeof cur === 'object' && 'value' in cur && cur.type === 'color') {
     return cur.value;
-  }
-
-  // Light's "*Alpha" group is named "*DarkAlpha" in dark set
-  const [first, ...rest] = lightPath;
-  if (first && first.endsWith('Alpha') && !first.endsWith('DarkAlpha')) {
-    const altGroup = first.replace(/Alpha$/, 'DarkAlpha');
-    let alt = darkColors[altGroup];
-    for (const seg of rest) {
-      if (alt && typeof alt === 'object' && seg in alt) {
-        alt = alt[seg];
-      } else {
-        alt = undefined;
-        break;
-      }
-    }
-    if (alt && typeof alt === 'object' && 'value' in alt && alt.type === 'color') {
-      return alt.value;
-    }
   }
   return null;
 }
@@ -260,9 +260,7 @@ function writeColorsets(lightColorTree, darkColorTree, xcassetsDir) {
 
     if ('value' in node && node.type === 'color') {
       const lightHex = node.value;
-      // static.* never has a dark counterpart; treat as universal asset
-      const isStatic = currentPath[0] === 'static';
-      const darkHex = isStatic ? null : findDarkValue(currentPath, darkColorTree);
+      const darkHex = findDarkValue(currentPath, darkColorTree);
 
       const name = colorsetName(['color', ...currentPath]);
       if (!name) {
@@ -276,7 +274,8 @@ function writeColorsets(lightColorTree, darkColorTree, xcassetsDir) {
 
       const lightComponents = hexToComponents(lightHex, ['color', ...currentPath]);
       const colors = [];
-      if (darkHex) {
+      // 동일 hex일 땐 universal로 출력 (alpha 시리즈처럼 light==dark인 경우 절약).
+      if (darkHex && darkHex.toLowerCase() !== lightHex.toLowerCase()) {
         const darkComponents = hexToComponents(darkHex, ['color', ...currentPath]);
         colors.push({
           idiom: 'universal',
@@ -477,6 +476,9 @@ const BORDER_RADIUS_SECTIONS = [
 const BORDER_WIDTH_SECTIONS = [
   { type: 'borderWidth', title: 'Border Width', swiftType: 'CGFloat' },
 ];
+const OPACITY_SECTIONS = [
+  { type: 'opacity', title: 'Opacity', swiftType: 'CGFloat' },
+];
 // fontFamilies is excluded — iOS team manages it manually via
 // PretendardFontFamily.swift. We only emit weight/size/lineHeight/letterSpacing.
 const TYPOGRAPHY_SECTIONS = [
@@ -519,6 +521,7 @@ export default {
         'value/swift/cgfloat',
         'value/swift/fontWeight',
         'value/swift/letterSpacing',
+        'value/swift/opacity',
         'value/swift/boxShadow',
       ],
       buildPath: 'build/ios/',
@@ -572,6 +575,16 @@ export default {
             importStatement: 'CoreGraphics',
           },
         },
+        {
+          destination: 'Opacity+Generated.swift',
+          format: 'ios-swift/sectionedEnum',
+          filter: (token) => token.type === 'opacity',
+          options: {
+            namespace: 'Opacity',
+            sections: OPACITY_SECTIONS,
+            importStatement: 'CoreGraphics',
+          },
+        },
         // Typography combines weight/size/lineHeight/letterSpacing.
         // fontFamilies는 iOS팀이 별도 관리(PretendardFontFamily.swift)하므로 미포함.
         {
@@ -587,8 +600,6 @@ export default {
             importStatement: 'UIKit',
           },
         },
-        // BoxShadow: 생성은 하지만 워크플로우에서는 iOS팀 매핑표에 없어
-        // 배포 대상에서 제외된다 (build/ios 산출물에는 남음).
         {
           destination: 'BoxShadow+Generated.swift',
           format: 'ios-swift/sectionedEnum',
