@@ -27,7 +27,7 @@ concurrency:
 # ─────────────────────────────────────────────────────────────────────────────
 env:
   TARGET_REPO: DDD-Community/DDD-13-iOS2-iOS
-  TARGET_BRANCH_BASE: main
+  TARGET_BRANCH_BASE: develop
   TARGET_BRANCH_NAME: design-tokens/auto-sync
   ASSETS_DEST: Projects/Shared/DesignSystem/Resources/ColorAssets.xcassets
   SWIFT_DEST: Projects/Shared/DesignSystem/Sources/Generated/DesignTokens.swift
