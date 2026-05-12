@@ -161,7 +161,7 @@ StyleDictionary.registerTransform({
       `        offsetY: ${num(v.y)},`,
       `        blur: ${num(v.blur)},`,
       `        spread: ${num(v.spread)},`,
-      `        color: UIColor(red: ${rgba.red}, green: ${rgba.green}, blue: ${rgba.blue}, alpha: ${rgba.alpha})`,
+      `        color: Color(red: ${rgba.red}, green: ${rgba.green}, blue: ${rgba.blue}, opacity: ${rgba.alpha})`,
       '    )',
     ].join('\n');
   },
@@ -497,12 +497,12 @@ const TYPOGRAPHY_SECTIONS = [
 const BOX_SHADOW_SECTIONS = [
   { type: 'boxShadow', title: 'Box Shadow', swiftType: null },
 ];
-const BOX_SHADOW_PREAMBLE = `public struct DesignTokenShadow {
+const BOX_SHADOW_PREAMBLE = `public struct DesignTokenShadow: Sendable {
     public let offsetX: CGFloat
     public let offsetY: CGFloat
     public let blur: CGFloat
     public let spread: CGFloat
-    public let color: UIColor
+    public let color: Color
 }`;
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -616,7 +616,7 @@ export default {
             namespace: 'BoxShadow',
             sections: BOX_SHADOW_SECTIONS,
             preamble: BOX_SHADOW_PREAMBLE,
-            importStatement: 'UIKit',
+            importStatement: 'SwiftUI',
           },
         },
       ],
