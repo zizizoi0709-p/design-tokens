@@ -329,7 +329,7 @@ StyleDictionary.registerFormat({
     fs.mkdirSync(xcassetsDir, { recursive: true });
     const count = writeColorsets(light.color, dark.color, xcassetsDir);
     console.log(`  ✔ Wrote ${count} .colorset entries → ${xcassetsDir}`);
-    return `${JSON.stringify({ info: { version: 1, author: 'xcode' } }, null, 2)}\n`;
+    return `{\n  "info" : {\n    "author" : "xcode",\n    "version" : 1\n  }\n}\n`;
   },
 });
 
