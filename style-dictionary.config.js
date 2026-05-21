@@ -457,7 +457,7 @@ StyleDictionary.registerFormat({
       if (showSectionHeaders) {
         lines.push(`    // MARK: - ${title}`);
       }
-      tokens.sort((a, b) => a.name.localeCompare(b.name, 'en'));
+      tokens.sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }));
       for (const t of tokens) {
         const lhs = swiftType
           ? `public static let ${t.name}: ${swiftType}`
