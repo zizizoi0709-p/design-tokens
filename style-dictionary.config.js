@@ -350,8 +350,8 @@ function fileHeader(destination) {
 // (instead of `extension ShapeStyle where Self == Color`) keeps token access
 // site (`Colors.blue500`) distinct from raw `Color` literals and avoids
 // colliding with hand-written color extensions during migration.
-// The bundle is resolved via a private `BundleToken` so the file works
-// regardless of how `Bundle.module` ends up being exposed by Tuist.
+// Bundle.module is provided by Tuist's generated TuistBundle+DesignSystem.swift
+// and correctly resolves DesignSystem_DesignSystem.bundle for staticFramework targets.
 StyleDictionary.registerFormat({
   name: 'ios-swift/colorAccessor',
   format: ({ file }) => {
@@ -380,8 +380,7 @@ StyleDictionary.registerFormat({
       ...fileHeader(file.destination),
       'import SwiftUI',
       '',
-      'private final class DesignSystemBundleToken {}',
-      'private let designSystemBundle = Bundle(for: DesignSystemBundleToken.self)',
+      'private let designSystemBundle = Bundle.module',
       '',
       'public enum Colors {',
     ];
